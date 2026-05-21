@@ -4,6 +4,8 @@ import Image from 'next/image'
 import Link from 'next/link'
 import SavePinButton from '@/components/SavePinButton'
 
+export const dynamic = 'force-dynamic'
+
 export default async function PinPage({ params }: { params: { id: string } }) {
   const supabase = await createClient()
 

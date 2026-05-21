@@ -4,6 +4,8 @@ import Masonry from 'react-masonry-css'
 import Link from 'next/link'
 import Image from 'next/image'
 
+export const dynamic = 'force-dynamic'
+
 export default async function BoardDetailPage({ params }: { params: { id: string } }) {
   const supabase = await createClient()
 
