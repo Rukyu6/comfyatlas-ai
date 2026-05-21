@@ -1,29 +1,60 @@
-import { createClient } from '@/lib/supabase/server'
-import { notFound } from 'next/navigation'
+'use client'
+
+import { useEffect, useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
+import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
 import SavePinButton from '@/components/SavePinButton'
 
-export const dynamic = 'force-dynamic'
+export default function PinPage({ params }: { params: { id: string } }) {
+  const [pin, setPin] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const router = useRouter()
+  const supabase = createClient()
 
-export default async function PinPage({ params }: { params: { id: string } }) {
-  const supabase = await createClient()
+  useEffect(() => {
+    fetchPin()
+  }, [params.id])
 
-  const { data: pin, error } = await supabase
-    .from('pins')
-    .select(`
-      *,
-      profiles:user_id (
-        id,
-        username,
-        avatar_url
-      )
-    `)
-    .eq('id', params.id)
-    .single()
+  const fetchPin = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('pins')
+        .select(`
+          *,
+          profiles:user_id (
+            id,
+            username,
+            avatar_url
+          )
+        `)
+        .eq('id', params.id)
+        .single()
 
-  if (error || !pin) {
-    notFound()
+      if (error || !data) {
+        router.push('/')
+        return
+      }
+
+      setPin(data)
+    } catch (error) {
+      console.error('Error fetching pin:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-xl text-gray-600">Loading...</div>
+      </div>
+    )
+  }
+
+  if (!pin) {
+    return null
   }
 
   return (

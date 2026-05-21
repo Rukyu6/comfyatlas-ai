@@ -1,29 +1,51 @@
-import { createClient } from '@/lib/supabase/server'
-import { notFound } from 'next/navigation'
+'use client'
+
+import { useEffect, useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
+import { useRouter } from 'next/navigation'
 import Masonry from 'react-masonry-css'
 import Link from 'next/link'
 import Image from 'next/image'
 
-export const dynamic = 'force-dynamic'
+export default function ProfilePage({ params }: { params: { id: string } }) {
+  const [profile, setProfile] = useState<any>(null)
+  const [pins, setPins] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const router = useRouter()
+  const supabase = createClient()
 
-export default async function ProfilePage({ params }: { params: { id: string } }) {
-  const supabase = await createClient()
+  useEffect(() => {
+    fetchProfileData()
+  }, [params.id])
 
-  const { data: profile, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', params.id)
-    .single()
+  const fetchProfileData = async () => {
+    try {
+      const { data: profileData, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', params.id)
+        .single()
 
-  if (error || !profile) {
-    notFound()
+      if (error || !profileData) {
+        router.push('/')
+        return
+      }
+
+      setProfile(profileData)
+
+      const { data: pinsData } = await supabase
+        .from('pins')
+        .select('*')
+        .eq('user_id', params.id)
+        .order('created_at', { ascending: false })
+
+      setPins(pinsData || [])
+    } catch (error) {
+      console.error('Error fetching profile:', error)
+    } finally {
+      setLoading(false)
+    }
   }
-
-  const { data: pins } = await supabase
-    .from('pins')
-    .select('*')
-    .eq('user_id', params.id)
-    .order('created_at', { ascending: false })
 
   const breakpointColumns = {
     default: 5,
@@ -32,6 +54,18 @@ export default async function ProfilePage({ params }: { params: { id: string } }
     1024: 3,
     768: 2,
     640: 1,
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-xl text-gray-600">Loading...</div>
+      </div>
+    )
+  }
+
+  if (!profile) {
+    return null
   }
 
   return (
@@ -61,7 +95,7 @@ export default async function ProfilePage({ params }: { params: { id: string } }
 
       <div className="mb-8">
         <h2 className="text-2xl font-bold mb-4">Pins</h2>
-        {!pins || pins.length === 0 ? (
+        {pins.length === 0 ? (
           <div className="text-center py-20">
             <p className="text-gray-600">No pins yet</p>
           </div>

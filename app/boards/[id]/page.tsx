@@ -1,45 +1,65 @@
-import { createClient } from '@/lib/supabase/server'
-import { notFound } from 'next/navigation'
+'use client'
+
+import { useEffect, useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
+import { useRouter } from 'next/navigation'
 import Masonry from 'react-masonry-css'
 import Link from 'next/link'
 import Image from 'next/image'
 
-export const dynamic = 'force-dynamic'
+export default function BoardDetailPage({ params }: { params: { id: string } }) {
+  const [board, setBoard] = useState<any>(null)
+  const [pins, setPins] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const router = useRouter()
+  const supabase = createClient()
 
-export default async function BoardDetailPage({ params }: { params: { id: string } }) {
-  const supabase = await createClient()
+  useEffect(() => {
+    fetchBoardData()
+  }, [params.id])
 
-  const { data: board, error: boardError } = await supabase
-    .from('boards')
-    .select(`
-      *,
-      profiles:user_id (
-        id,
-        username
-      )
-    `)
-    .eq('id', params.id)
-    .single()
+  const fetchBoardData = async () => {
+    try {
+      const { data: boardData, error: boardError } = await supabase
+        .from('boards')
+        .select(`
+          *,
+          profiles:user_id (
+            id,
+            username
+          )
+        `)
+        .eq('id', params.id)
+        .single()
 
-  if (boardError || !board) {
-    notFound()
+      if (boardError || !boardData) {
+        router.push('/boards')
+        return
+      }
+
+      setBoard(boardData)
+
+      const { data: boardPins } = await supabase
+        .from('board_pins')
+        .select(`
+          pin_id,
+          pins (
+            id,
+            title,
+            image_url,
+            image_width,
+            image_height
+          )
+        `)
+        .eq('board_id', params.id)
+
+      setPins(boardPins?.map(bp => bp.pins).filter(Boolean) || [])
+    } catch (error) {
+      console.error('Error fetching board:', error)
+    } finally {
+      setLoading(false)
+    }
   }
-
-  const { data: boardPins } = await supabase
-    .from('board_pins')
-    .select(`
-      pin_id,
-      pins (
-        id,
-        title,
-        image_url,
-        image_width,
-        image_height
-      )
-    `)
-    .eq('board_id', params.id)
-
-  const pins = boardPins?.map(bp => bp.pins).filter(Boolean) || []
 
   const breakpointColumns = {
     default: 5,
@@ -48,6 +68,18 @@ export default async function BoardDetailPage({ params }: { params: { id: string
     1024: 3,
     768: 2,
     640: 1,
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-xl text-gray-600">Loading...</div>
+      </div>
+    )
+  }
+
+  if (!board) {
+    return null
   }
 
   return (
